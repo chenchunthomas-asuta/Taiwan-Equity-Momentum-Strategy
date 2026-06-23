@@ -11,14 +11,14 @@ import warnings
 warnings.filterwarnings('ignore')
 
 # =========================================================
-# 區塊一：核心參數與 JSON 讀寫路徑
+# 核心參數與 JSON 讀寫路徑
 # =========================================================
-API_KEY = "YOUR_FUGLE_API_KEY"  # ⚠️ 請填入你的富果 API KEY
+API_KEY = "YOUR_FUGLE_API_KEY"
 
 CONFIG_PATH = os.path.expanduser("~/quant_fund/portfolio.json")
 
-# 🔥 資金與交易成本設定 (V7.9.4 法人規格)
-INITIAL_TOTAL_CAPITAL = 100000000 # 1億台幣
+# 資金與交易成本設定 (V7.9.4)
+INITIAL_TOTAL_CAPITAL = 100000000
 FEE_DISCOUNT = 0.28
 FEE_RATE = 0.001425 * FEE_DISCOUNT
 TAX_RATE = 0.003
@@ -26,12 +26,12 @@ SLIPPAGE = 0.002
 TODAY_STR = datetime.now().strftime("%Y-%m-%d")
 
 # =========================================================
-# V7.9.4 核心參數 (機構級濾網與動態權重)
+# V7.9.4
 # =========================================================
-MAX_INDIVIDUAL_WEIGHT = 0.20    # 單檔最高權重 20%
-TARGET_EXPOSURE = 0.85          # 預計總多頭曝險 85% (留 15% 現金作為防禦緩衝)
-LIQUIDITY_PARTICIPATION = 0.10  # 流動性天花板：最高吃下 20日均量的 10%
-EXIT_RANK_THRESHOLD = 40        # 動能退潮二階死線清倉閥值 
+MAX_INDIVIDUAL_WEIGHT = 0.20
+TARGET_EXPOSURE = 0.85
+LIQUIDITY_PARTICIPATION = 0.10
+EXIT_RANK_THRESHOLD = 40
 
 def load_config():
     if not os.path.exists(CONFIG_PATH):
@@ -49,7 +49,7 @@ def save_config(capital, portfolio, cash):
         json.dump(config_data, f, ensure_ascii=False, indent=4)
 
 # =========================================================
-# 區塊二：市場資料與報價抓取
+# 市場資料與報價抓取
 # =========================================================
 def get_all_taiwan_stocks():
     tickers, stock_names = [], {}
@@ -66,7 +66,6 @@ def get_all_taiwan_stocks():
                 stock_names[f"{item['SecuritiesCompanyCode']}.TWO"] = item['CompanyName'].strip()
     except: pass
     
-    # 強制覆蓋特定股票名稱
     stock_names["8150.TW"] = "南茂"
     stock_names["8046.TW"] = "南電"
     
@@ -88,10 +87,10 @@ def tw_round(price):
     else: return round(price / 5) * 5
 
 # =========================================================
-# 區塊三：V7.9.4 執行引擎
+# V7.9.4 執行引擎
 # =========================================================
 def execute_pipeline():
-    print(f"=== 主動動能台股增長 ETF (V7.9.4 法人規格版) ===")
+    print(f"=== V7.9.4 ===")
 
     config = load_config()
     if not config: 
@@ -108,20 +107,17 @@ def execute_pipeline():
     all_tickers, stock_names = get_all_taiwan_stocks()
     all_tickers = list(set(all_tickers + list(my_portfolio.keys())))
 
-    # 階段 1：大盤多空判斷 (大盤濾網：0050 必須 > SMA60)
     df_market = yf.download("0050.TW", period="1y", progress=False)
     if isinstance(df_market.columns, pd.MultiIndex): df_market.columns = df_market.columns.get_level_values(0)
     market_is_bull = df_market['Close'].iloc[-1] > df_market['Close'].rolling(60).mean().iloc[-1]
     
     try:
-        # 這裡的 inception date 可以依據你的實盤啟動日做更改
         inception_date = "2024-01-01" 
         market_inception_price = df_market.loc[:inception_date]['Close'].iloc[-1]
         market_itd_ret = (df_market['Close'].iloc[-1] - market_inception_price) / market_inception_price * 100
     except:
         market_itd_ret = 0.0
 
-    # 階段 2：全市場動能海選與特徵工程
     data = yf.download(all_tickers, period="1y", group_by='ticker', threads=False, progress=False)
     stock_metrics = {}
     old_weights = {}
@@ -166,32 +162,25 @@ def execute_pipeline():
         df_rank['Rank'] = df_rank['Mom_120'].rank(ascending=False)
         
         # ---------------------------------------------------------
-        # 🎯 V7.9.4 核心計算：機構級濾網與動態目標權重
+        # V7.9.4 核心計算
         # ---------------------------------------------------------
-        # 一階個股濾網：前 20 名、ADV_20 > 5,000萬台幣、價格 > 20日均線
         candidates_mask = (df_rank['Rank'] <= 20) & (df_rank['ADV_20'] > 50000000) & (df_rank['Close'] > df_rank['SMA20'])
         df_targets = df_rank[candidates_mask].copy()
         
         if not df_targets.empty:
-            # 階梯乘數 (Rank Multiplier)
             df_targets['Rank_Mult'] = np.where(df_targets['Rank'] <= 5, 1.5,
                                       np.where(df_targets['Rank'] <= 10, 1.0, 0.5))
             
-            # 波動度倒數 (Inverse Volatility)
             df_targets['Vol_20'] = df_targets['Vol_20'].replace(0, 0.001)
             df_targets['Raw_Weight'] = (1.0 / df_targets['Vol_20']) * df_targets['Rank_Mult']
             
-            # 歸一化並套用目標曝險 (Target Exposure: 85%)
             df_targets['Norm_Weight'] = (df_targets['Raw_Weight'] / df_targets['Raw_Weight'].sum()) * TARGET_EXPOSURE
             
-            # 計算 10% 流動性天花板權重
             df_targets['Liq_Cap_Weight'] = (df_targets['ADV_20'] * LIQUIDITY_PARTICIPATION) / yesterday_nav
             
-            # 融合決策：取最小值，且單檔不超過 20%
             df_targets['Target_Weight'] = df_targets[['Norm_Weight', 'Liq_Cap_Weight']].min(axis=1)
             df_targets['Target_Weight'] = df_targets['Target_Weight'].clip(upper=MAX_INDIVIDUAL_WEIGHT)
 
-    # 階段 3：出場風控與狀態機減碼
     new_portfolio = {}
     tg_actions = []
     current_market_value = 0
@@ -202,14 +191,12 @@ def execute_pipeline():
             metrics = stock_metrics[ticker]
             rank = df_rank.loc[ticker, 'Rank'] if not df_rank.empty else 999
             
-            # 【二階死線】大盤轉空、跌破月線、或動能大幅衰退 -> 100% 全部出清
             if (not market_is_bull) or (metrics['Close'] < metrics['SMA20']) or (rank > EXIT_RANK_THRESHOLD):
                 sell_val = pos['shares'] * metrics['Close'] * (1 - FEE_RATE - TAX_RATE - SLIPPAGE)
                 current_cash += sell_val
                 pnl = ((metrics['Close'] / pos['cost']) - 1) * 100
                 tg_actions.append(f"賣出：{name}({ticker}) (二階死線：全部出清) | 損益: {pnl:+.2f}%")
             
-            # 【一階警報】高檔洗盤跌破 5MA -> 減碼 50% 保本
             elif metrics['Close'] < metrics['SMA5'] and not pos.get('reduced', False):
                 sell_shares = int((pos['shares'] * 0.5) / 1000) * 1000 
                 
@@ -236,7 +223,6 @@ def execute_pipeline():
             new_portfolio[ticker] = pos
             current_market_value += pos['shares'] * pos['cost']
 
-    # 階段 4：V7.9.4 融合動態權重建倉與加碼
     if market_is_bull and not df_targets.empty:
         current_nav_est = current_cash + current_market_value
         
@@ -282,7 +268,6 @@ def execute_pipeline():
                         }
                         tg_actions.append(f"買進：{name}({ticker}) (動態新倉) | 成交價: {tw_round(row['Close'])}")
 
-    # 階段 5：報表格式產出
     final_nav = current_cash + current_market_value
     save_config(final_nav, new_portfolio, current_cash)
     
@@ -321,11 +306,11 @@ def execute_pipeline():
 
     try:
         # 推播設定
-        TG_TOKEN = "" # ⚠️ 請填寫你的 Telegram Bot Token
-        TG_CHAT_ID = "" # ⚠️ 請填寫你的 Telegram Chat ID
+        TG_TOKEN = ""
+        TG_CHAT_ID = ""
         
         if TG_TOKEN != "":
-            report_msg = f"""【V7.9.4 動態權重結算報告】
+            report_msg = f"""【V7.9.4結算報告】
 日期：{TODAY_STR}
 
 初始投入本金：{INITIAL_TOTAL_CAPITAL:,.0f} 元
