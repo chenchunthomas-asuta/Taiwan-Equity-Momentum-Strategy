@@ -47,10 +47,8 @@ This project implements and validates an institutional-grade, low-to-medium freq
 * `main.py`
   * **中文:** 實盤自動化交易與推播引擎。串接富果 Fugle API 獲取即時/盤後市場微結構特徵，內建狀態機執行一階警報（破5MA減碼50%）與二階死線風控，並透過 Telegram Bot 推播每日調倉報告。
   * **English:** Live-trading execution engine integrated with Fugle API. Built-in state machine handles risk management (50% reduction upon breaching SMA5, 100% exit on SMA20/Rank breakdown) and dispatches automated rebalancing reports via Telegram Bot.
-* `v7_full_backtest.py`
-  * **中文:** 全市場向量化歷史回測框架（2015-2025）。使用還原收盤價（Adj Close）精確對齊多維矩陣（`df_rets_aligned`），完美模擬月底再平衡、複利滾存與交易摩擦摩擦成本，杜絕前瞻偏誤（Look-ahead Bias）。
-  * **English:** Vectorized backtesting framework covering 1,900+ tickers (2015-2025). Utilizes split-adjusted prices and perfectly aligns multi-dimensional dataframes (`df_rets_aligned`) to simulate monthly rebalancing and friction costs without Look-ahead Bias.
-* `Quantitative_Research_Whitepaper.pdf`
+
+* `陳均_量化研究員作品集_台股截面動能策略.pdf`
   * **中文:** 完整的量化研究報告。內含詳細的計量哲學、2022年回撤深度解剖、2021年典型持倉案例（2609陽明波段獲利249.92%之微結構剖析）以及參數敏感度強健性測試。
   * **English:** Full-length quantitative research whitepaper, detailing factor robust test, 2022 drawdown autopsy, and a micro-structure case study on 2609.TW (capturing a 249.92% trend ride).
 
