@@ -24,6 +24,7 @@ This project implements and validates an institutional-grade, low-to-medium freq
 | **年化雙邊換手率 (Annualized Turnover)** | **285.11%** | -- |
 | **平均單日換手率 (Avg Daily Turnover)** | **1.13%** | -- |
 
+`![Backtest Result](backtest_result.png)`
 ---
 
 ## 策略架構與因子工程 (Strategy Architecture & Factor Engineering)
