@@ -24,7 +24,7 @@ This project implements and validates an institutional-grade, low-to-medium freq
 | **年化雙邊換手率 (Annualized Turnover)** | **285.11%** | -- |
 | **平均單日換手率 (Avg Daily Turnover)** | **1.13%** | -- |
 
-`![Backtest Result](backtest_result.png)`
+![Backtest Result](backtest_result.png)
 ---
 
 ## 策略架構與因子工程 (Strategy Architecture & Factor Engineering)
@@ -56,8 +56,5 @@ This project implements and validates an institutional-grade, low-to-medium freq
 
 ---
 
-## 快速開始 (Getting Started)
-
-### Prerequisites
-```bash
-pip install yfinance pandas numpy matplotlib requests tqdm fugle-marketdata
+本專案僅供學術研究與量化策略展示之用，不構成任何投資建議、邀約或保證。回測績效不代表未來實際收益。策略中提及之個股僅為案例分析，並無推薦買賣之意。任何依據本報告進行之交易，其風險由投資人自行承擔。
+This repository is for academic research and strategy demonstration purposes only. Past performance does not guarantee future results. Tickers mentioned are purely for case studies and do not constitute financial advice. The author bears no responsibility for any trading losses incurred.
